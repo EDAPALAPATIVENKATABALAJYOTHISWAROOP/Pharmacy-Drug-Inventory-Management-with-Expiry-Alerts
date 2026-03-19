@@ -25,11 +25,12 @@ def create_app():
     # Automatically create DB and tables if doesn't exist
     if not os.path.exists(Config.DATABASE_PATH):
         init_db(app)
-        try:
-            from database.seeder import seed_db
-            seed_db(app)
-        except Exception as e:
-            print(f"Seeder failed: {e}")
+        
+    try:
+        from database.seeder import seed_db
+        seed_db(app)
+    except Exception as e:
+        print(f"Seeder failed: {e}")
 
     @app.teardown_appcontext
     def close_connection(exception):
