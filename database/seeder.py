@@ -30,7 +30,7 @@ def seed_db(app):
         companies = ['Sun Pharma', 'Cipla', 'Dr Reddys', 'Lupin', 'Aurobindo']
         
         drug_ids = []
-        for i in range(50): # 50 unique drug bases
+        for i in range(100): # 100 unique drug bases
             name = random.choice(drug_prefixes) + random.choice(drug_suffixes) + " " + str(random.choice([100, 250, 500, 650])) + "mg"
             category = random.choice(categories)
             company = random.choice(companies)
@@ -40,8 +40,8 @@ def seed_db(app):
                         (name, name.split()[0], category, company, 12.0, 'Strip' if category in ['Tablet', 'Capsule'] else 'Bottle'))
             drug_ids.append(cur.lastrowid)
             
-        # 3. Add Batches (100 items)
-        for i in range(100):
+        # 3. Add Batches (200 items)
+        for i in range(200):
             drug_id = random.choice(drug_ids)
             supplier_id = random.choice(supplier_ids)
             batch_num = f"BTH-{random.randint(1000, 9999)}"
@@ -65,4 +65,4 @@ def seed_db(app):
                          expiry_date.strftime('%Y-%m-%d'), purchase_price, mrp, quantity, min_threshold))
                          
         db.commit()
-        print("Database seeded successfully with 100 batches!")
+        print("Database seeded successfully with 200 batches!")
