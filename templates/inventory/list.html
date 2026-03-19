@@ -1,0 +1,274 @@
+{% extends "base.html" %}
+
+{% block title %}Drug Inventory - Pharmacy System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-pills text-primary-custom"></i> Drug Inventory</h2>
+    <div>
+        <a href="{{ url_for('inventory.export_csv') }}" class="btn btn-outline-success"><i class="fas fa-file-csv"></i>
+            Export CSV</a>
+        {% if session.get('role') in ['Admin', 'Pharmacist'] %}
+        <button type="button" class="btn btn-primary-custom text-white" data-bs-toggle="modal"
+            data-bs-target="#addDrugModal">
+            <i class="fas fa-plus"></i> Add New Stock
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-4">
+    <div class="card-body bg-light">
+        <form method="GET" action="{{ url_for('inventory.list_drugs') }}">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <input type="text" name="q" id="searchInput" class="form-control"
+                        placeholder="Search by name, generic, or batch..." value="{{ request.args.get('q', '') }}">
+                </div>
+                <div class="col-md-3">
+                    <select name="category" id="categoryFilter" class="form-select">
+                        <option value="">All Categories</option>
+                        {% for cat in categories %}
+                        <option value="{{ cat }}" {% if request.args.get('category') == cat %}selected{% endif %}>{{ cat }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <select name="company" id="companyFilter" class="form-select">
+                        <option value="">All Companies</option>
+                        {% for comp in companies %}
+                        <option value="{{ comp }}" {% if request.args.get('company') == comp %}selected{% endif %}>{{ comp }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary-custom text-white w-100" style="background-color: var(--primary-green); border-color: var(--primary-green);"><i class="fas fa-search"></i> Search</button>
+                    {% if request.args.get('q') or request.args.get('category') or request.args.get('company') %}
+                    <a href="{{ url_for('inventory.list_drugs') }}" class="btn btn-outline-secondary w-100">Clear</a>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-striped mb-0" id="inventoryTable">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Drug Name</th>
+                        <th>Category</th>
+                        <th>Company</th>
+                        <th>Batch No.</th>
+                        <th>Quantity</th>
+                        <th>MRP (₹)</th>
+                        <th>Expiry Date</th>
+                        <th>Status</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in inventory %}
+                    <tr>
+                        <td class="fw-bold">{{ item.drug_name }}</td>
+                        <td class="cat-col">{{ item.category }}</td>
+                        <td class="comp-col">{{ item.company }}</td>
+                        <td>{{ item.batch_number }}</td>
+                        <td>
+                            {{ item.quantity }}
+                            {% if item.quantity <= item.min_threshold %} <span class="badge bg-danger ms-1"
+                                title="Low Stock"><i class="fas fa-arrow-down"></i> Low</span>
+                                {% endif %}
+                        </td>
+                        <td>₹{{ "%.2f"|format(item.mrp) }}</td>
+                        <td>{{ item.expiry_date_obj.strftime('%d-%b-%Y') }}</td>
+                        <td>
+                            {% if item.expiry_date < today %} <span class="badge bg-danger">Expired</span>
+                                {% elif item.expiry_date <= delta_30 %} <span class="badge bg-orange"
+                                    style="background-color: #fd7e14; color: white;"><i
+                                        class="fas fa-exclamation-triangle"></i>
+                                    < 30 Days</span>
+                                        {% elif item.expiry_date <= delta_90 %} <span
+                                            class="badge bg-warning text-dark"><i class="fas fa-exclamation-circle"></i>
+                                            < 90 Days</span>
+                                                {% else %}
+                                                <span class="badge bg-success">Good</span>
+                                                {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="text-center py-4 text-muted">No inventory records found.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<nav aria-label="Inventory Pagination" class="mt-4">
+    <ul class="pagination justify-content-center">
+        <li class="page-item {% if page == 1 %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('inventory.list_drugs', page=page-1, q=request.args.get('q', ''), category=request.args.get('category', ''), company=request.args.get('company', '')) }}">Previous</a>
+        </li>
+        {% for p in range(1, total_pages + 1) %}
+        <li class="page-item {% if p == page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('inventory.list_drugs', page=p, q=request.args.get('q', ''), category=request.args.get('category', ''), company=request.args.get('company', '')) }}">{{ p }}</a>
+        </li>
+        {% endfor %}
+        <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+            <a class="page-link" href="{{ url_for('inventory.list_drugs', page=page+1, q=request.args.get('q', ''), category=request.args.get('category', ''), company=request.args.get('company', '')) }}">Next</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+
+<!-- Add Drug Modal -->
+<div class="modal fade" id="addDrugModal" tabindex="-1" aria-labelledby="addDrugModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form action="{{ url_for('inventory.add_drug') }}" method="POST" class="needs-validation" novalidate>
+                <div class="modal-header bg-primary-custom text-white" style="background-color: var(--primary-green);">
+                    <h5 class="modal-title" id="addDrugModalLabel"><i class="fas fa-plus-circle"></i> Add New Stock
+                        Batch</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <h6 class="border-bottom pb-2 mb-3 text-primary-custom">Drug Details</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Drug Name</label>
+                            <input type="text" class="form-control" name="drug_name" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Generic Name</label>
+                            <input type="text" class="form-control" name="generic_name">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Category</label>
+                            <select class="form-select" name="category" required>
+                                <option value="">Select...</option>
+                                <option value="Tablet">Tablet</option>
+                                <option value="Syrup">Syrup</option>
+                                <option value="Injection">Injection</option>
+                                <option value="Capsule">Capsule</option>
+                                <option value="Ointment">Ointment</option>
+                                <option value="Drops">Drops</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Company</label>
+                            <input type="text" class="form-control" name="company" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">Unit</label>
+                            <input type="text" class="form-control" name="unit" placeholder="e.g. Strip" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label">GST %</label>
+                            <select class="form-select" name="gst_percent" required>
+                                <option value="0.00">0%</option>
+                                <option value="5.00">5%</option>
+                                <option value="12.00" selected>12%</option>
+                                <option value="18.00">18%</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <h6 class="border-bottom pb-2 mt-4 mb-3 text-primary-custom">Batch & Stock Details</h6>
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Supplier</label>
+                            <select class="form-select" name="supplier_id" required>
+                                <option value="">Select Supplier...</option>
+                                {% for sup in suppliers %}
+                                <option value="{{ sup.supplier_id }}">{{ sup.supplier_name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Batch Number</label>
+                            <input type="text" class="form-control" name="batch_number" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Mfg Date</label>
+                            <input type="date" class="form-control" name="mfg_date">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Expiry Date</label>
+                            <input type="date" class="form-control" name="expiry_date" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Purchase Price (₹)</label>
+                            <input type="number" step="0.01" class="form-control" name="purchase_price" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">MRP (₹)</label>
+                            <input type="number" step="0.01" class="form-control" name="mrp" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Stock Qty</label>
+                            <input type="number" class="form-control" name="quantity" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Min Threshold</label>
+                            <input type="number" class="form-control" name="min_threshold" value="10" required>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-primary-custom text-white">Save Drug Entry</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function () {
+        // Form Validation using jQuery
+        $('.needs-validation').on('submit', function (event) {
+            let isValid = true;
+            
+            // Native HTML5 check
+            if (!this.checkValidity()) {
+                isValid = false;
+            }
+            
+            // Custom jQuery Validation: MRP vs Purchase Price
+            let purchasePrice = parseFloat($('input[name="purchase_price"]').val());
+            let mrp = parseFloat($('input[name="mrp"]').val());
+            
+            if (purchasePrice > mrp) {
+                alert('Form Validation Error: Purchase Price cannot be strictly greater than MRP!');
+                $('input[name="mrp"]').focus();
+                isValid = false;
+            }
+            
+            // Custom jQuery Validation: Prevent zero or negative stock on creation
+            let qty = parseInt($('input[name="quantity"]').val());
+            if (qty <= 0) {
+                alert('Form Validation Error: Initial stock quantity must be greater than zero.');
+                $('input[name="quantity"]').focus();
+                isValid = false;
+            }
+
+            if (!isValid) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            
+            $(this).addClass('was-validated');
+        });
+    });
+</script>
+{% endblock %}

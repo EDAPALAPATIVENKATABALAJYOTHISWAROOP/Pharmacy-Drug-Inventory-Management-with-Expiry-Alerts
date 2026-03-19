@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Expiry & Stock Alerts - Pharmacy System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-bell text-primary-custom"></i> Expiry & Stock Alerts</h2>
+</div>
+
+<div class="card shadow-sm border-0">
+    <div class="card-header bg-white pt-3 pb-0">
+        <ul class="nav nav-tabs border-0" id="alertTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active fw-bold text-danger border-bottom-0" id="expired-tab"
+                    data-bs-toggle="tab" data-bs-target="#expired" type="button" role="tab" aria-controls="expired"
+                    aria-selected="true">
+                    <i class="fas fa-times-circle"></i> Expired ({{ expired|length }})
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-orange border-bottom-0" style="color: #fd7e14;" id="critical-tab"
+                    data-bs-toggle="tab" data-bs-target="#critical" type="button" role="tab" aria-controls="critical"
+                    aria-selected="false">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    < 30 Days ({{ critical|length }}) </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-warning border-bottom-0"
+                    style="color: #ffc107; text-shadow: 0px 0px 1px #000;" id="warning-tab" data-bs-toggle="tab"
+                    data-bs-target="#warning" type="button" role="tab" aria-controls="warning" aria-selected="false">
+                    <i class="fas fa-exclamation-circle"></i>
+                    < 90 Days ({{ warning|length }}) </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link fw-bold text-danger border-bottom-0" id="lowstock-tab" data-bs-toggle="tab"
+                    data-bs-target="#lowstock" type="button" role="tab" aria-controls="lowstock" aria-selected="false">
+                    <i class="fas fa-arrow-down"></i> Low Stock ({{ low_stock|length }})
+                </button>
+            </li>
+        </ul>
+    </div>
+
+    <div class="card-body p-0">
+        <div class="tab-content" id="alertTabsContent">
+            <!-- Expired Tab -->
+            <div class="tab-pane fade show active p-3" id="expired" role="tabpanel" aria-labelledby="expired-tab">
+                {% if expired %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-danger">
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Batch No.</th>
+                                <th>Expiry Date</th>
+                                <th>Stock Left</th>
+                                <th>Supplier</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in expired %}
+                            <tr>
+                                <td class="fw-bold">{{ item.drug_name }}</td>
+                                <td>{{ item.batch_number }}</td>
+                                <td class="text-danger fw-bold">{{ item.expiry_date_obj.strftime('%d-%b-%Y') }} (Passed)</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.supplier_name or 'Unknown' }}</td>
+                                <td>
+                                    <form method="POST"
+                                        action="{{ url_for('inventory.delete_expired_batch', batch_id=item.batch_id) }}"
+                                        onsubmit="return confirm('Delete expired batch {{ item.batch_number }} of {{ item.drug_name }}? This cannot be undone.');">
+                                        <button type="submit" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash-alt"></i> Delete
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-check-circle fs-1 text-success mb-3"></i>
+                    <h4>No Expired Medicines</h4>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Critical < 30 Days Tab -->
+            <div class="tab-pane fade p-3" id="critical" role="tabpanel" aria-labelledby="critical-tab">
+                {% if critical %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead style="background-color: #ffe8d6;">
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Batch No.</th>
+                                <th>Expiry Date</th>
+                                <th>Days Left</th>
+                                <th>Stock Left</th>
+                                <th>Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in critical %}
+                            <tr>
+                                <td class="fw-bold">{{ item.drug_name }}</td>
+                                <td>{{ item.batch_number }}</td>
+                                <td>{{ item.expiry_date_obj.strftime('%d-%b-%Y') }}</td>
+                                <td class="fw-bold" style="color: #fd7e14;">{{ item.days_remaining }} days</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.supplier_name or 'Unknown' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-check-circle fs-1 text-success mb-3"></i>
+                    <h4>No Critical Medicines</h4>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Warning < 90 Days Tab -->
+            <div class="tab-pane fade p-3" id="warning" role="tabpanel" aria-labelledby="warning-tab">
+                {% if warning %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-warning">
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Batch No.</th>
+                                <th>Expiry Date</th>
+                                <th>Days Left</th>
+                                <th>Stock Left</th>
+                                <th>Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in warning %}
+                            <tr>
+                                <td class="fw-bold">{{ item.drug_name }}</td>
+                                <td>{{ item.batch_number }}</td>
+                                <td>{{ item.expiry_date_obj.strftime('%d-%b-%Y') }}</td>
+                                <td class="text-warning fw-bold" style="text-shadow: 0px 0px 1px #000;">{{
+                                    item.days_remaining }} days</td>
+                                <td>{{ item.quantity }}</td>
+                                <td>{{ item.supplier_name or 'Unknown' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-check-circle fs-1 text-success mb-3"></i>
+                    <h4>No Early Warnings</h4>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Low Stock Tab -->
+            <div class="tab-pane fade p-3" id="lowstock" role="tabpanel" aria-labelledby="lowstock-tab">
+                {% if low_stock %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-danger">
+                            <tr>
+                                <th>Drug Name</th>
+                                <th>Batch No.</th>
+                                <th>Min Threshold</th>
+                                <th>Current Stock</th>
+                                <th>Difference</th>
+                                <th>Supplier</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in low_stock %}
+                            <tr>
+                                <td class="fw-bold">{{ item.drug_name }}</td>
+                                <td>{{ item.batch_number }}</td>
+                                <td>{{ item.min_threshold }}</td>
+                                <td class="text-danger fw-bold">{{ item.quantity }} <i class="fas fa-arrow-down"></i>
+                                </td>
+                                <td class="text-danger">-{{ item.min_threshold - item.quantity }}</td>
+                                <td>{{ item.supplier_name or 'Unknown' }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="fas fa-check-circle fs-1 text-success mb-3"></i>
+                    <h4>No Low Stock Items</h4>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
