@@ -95,6 +95,15 @@ def create_app():
                 return redirect(url_for('inventory.list_drugs'))
         return redirect(url_for('auth.login'))
 
+    @app.route('/seed-data')
+    def force_seed_route():
+        try:
+            from database.seeder import seed_db
+            seed_db(app)
+            return "SUCCESS! 200 items added. <a href='/'>Click here to go back to dashboard</a>"
+        except Exception as e:
+            return f"Error running seeder: {e}"
+
     return app
 
 if __name__ == '__main__':

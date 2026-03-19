@@ -8,8 +8,8 @@ def seed_db(app):
         db = get_db()
         cur = db.cursor()
         
-        # Check if already seeded
-        cur.execute("SELECT COUNT(*) as count FROM suppliers")
+        # Check if already seeded with batches
+        cur.execute("SELECT COUNT(*) as count FROM drug_batches")
         if cur.fetchone()['count'] > 0:
             return
             
