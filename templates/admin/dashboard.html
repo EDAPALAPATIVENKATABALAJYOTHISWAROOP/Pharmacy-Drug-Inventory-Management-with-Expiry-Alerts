@@ -1,0 +1,199 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Pharmacy System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-tachometer-alt text-primary-custom"></i> Admin Dashboard</h2>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-4 mb-4">
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-primary text-white shadow border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small text-uppercase fw-bold">Medicines in Stock</div>
+                        <div class="fs-2 fw-bold">{{ total_drugs }}</div>
+                    </div>
+                    <i class="fas fa-pills fa-3x opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between">
+                <a class="small text-white stretched-link text-decoration-none"
+                    href="{{ url_for('inventory.list_drugs') }}">View Details</a>
+                <i class="fas fa-angle-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-success text-white shadow border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small text-uppercase fw-bold">Today's Sales</div>
+                        <div class="fs-2 fw-bold">₹{{ "%.2f"|format(today_sales) }}</div>
+                    </div>
+                    <i class="fas fa-rupee-sign fa-3x opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between">
+                <a class="small text-white stretched-link text-decoration-none"
+                    href="{{ url_for('billing.history') }}">View Bills</a>
+                <i class="fas fa-angle-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-danger text-white shadow border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-white-50 small text-uppercase fw-bold">Expiry Alerts (30 Days)</div>
+                        <div class="fs-2 fw-bold">{{ expiry_alerts }}</div>
+                    </div>
+                    <i class="fas fa-exclamation-triangle fa-3x opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between">
+                <a class="small text-white stretched-link text-decoration-none"
+                    href="{{ url_for('inventory.list_alerts') }}">Take Action</a>
+                <i class="fas fa-angle-right"></i>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6">
+        <div class="card bg-warning text-dark shadow border-0 h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <div class="text-black-50 small text-uppercase fw-bold">Low Stock Items</div>
+                        <div class="fs-2 fw-bold">{{ low_stock }}</div>
+                    </div>
+                    <i class="fas fa-arrow-down fa-3x opacity-50"></i>
+                </div>
+            </div>
+            <div class="card-footer d-flex align-items-center justify-content-between">
+                <a class="small text-dark stretched-link text-decoration-none"
+                    href="{{ url_for('inventory.list_alerts') }}">Reorder Now</a>
+                <i class="fas fa-angle-right"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Charts Row -->
+<div class="row g-4 mb-4">
+    <!-- Main Area Chart -->
+    <div class="col-xl-8">
+        <div class="card shadow border-0 h-100">
+            <div class="card-header bg-white fw-bold py-3"><i class="fas fa-chart-bar me-1 text-primary-custom"></i>
+                Last 7 Days Revenue</div>
+            <div class="card-body">
+                <canvas id="revenueChart" width="100%" height="40"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pie Chart -->
+    <div class="col-xl-4">
+        <div class="card shadow border-0 h-100">
+            <div class="card-header bg-white fw-bold py-3"><i class="fas fa-chart-pie me-1 text-primary-custom"></i>
+                Inventory by Category</div>
+            <div class="card-body">
+                <canvas id="categoryChart" width="100%" height="80"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Top Sellers Row -->
+<div class="row g-4">
+    <div class="col-12">
+        <div class="card shadow border-0">
+            <div class="card-header bg-white fw-bold py-3"><i class="fas fa-trophy me-1 text-warning"></i> Top 10 Best
+                Sellers This Month</div>
+            <div class="card-body">
+                <canvas id="topSellersChart" width="100%" height="30"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Data populated by Flask via Jinja
+    const revenueLabels = {{ dates | tojson }};
+    const revenueData = {{ sales | tojson }};
+
+    const catLabels = {{ cat_labels | tojson }};
+    const catData = {{ cat_values | tojson }};
+
+    const topLabels = {{ top_labels | tojson }};
+    const topData = {{ top_data | tojson }};
+
+    // Revenue Bar Chart
+    const ctxRevenue = document.getElementById('revenueChart');
+    new Chart(ctxRevenue, {
+        type: 'bar',
+        data: {
+            labels: revenueLabels,
+            datasets: [{
+                label: 'Revenue (₹)',
+                backgroundColor: 'rgba(26, 122, 74, 0.8)',
+                borderColor: 'rgba(26, 122, 74, 1)',
+                borderWidth: 1,
+                data: revenueData,
+            }]
+        },
+        options: {
+            scales: {
+                y: { beginAtZero: true }
+            }
+        }
+    });
+
+    // Category Pie Chart
+    const ctxCat = document.getElementById('categoryChart');
+    new Chart(ctxCat, {
+        type: 'doughnut',
+        data: {
+            labels: catLabels,
+            datasets: [{
+                data: catData,
+                backgroundColor: ['#1a7a4a', '#28a745', '#ffc107', '#17a2b8', '#dc3545', '#6c757d'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            plugins: { legend: { position: 'bottom' } }
+        }
+    });
+
+    // Top Sellers Bar Chart
+    const ctxTop = document.getElementById('topSellersChart');
+    new Chart(ctxTop, {
+        type: 'bar',
+        data: {
+            labels: topLabels,
+            datasets: [{
+                label: 'Units Sold',
+                backgroundColor: 'rgba(23, 162, 184, 0.8)',
+                data: topData,
+            }]
+        },
+        options: {
+            indexAxis: 'y', // Horizontal bar chart
+            scales: {
+                x: { beginAtZero: true }
+            }
+        }
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,281 @@
+{% extends "base.html" %}
+
+{% block title %}Create Bill - Pharmacy System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-invoice-dollar text-primary-custom"></i> Create New Bill</h2>
+    <a href="{{ url_for('billing.history') }}" class="btn btn-outline-secondary"><i class="fas fa-history"></i> Bill
+        History</a>
+</div>
+
+<div class="row">
+    <div class="col-md-12">
+        <form id="billingForm" action="{{ url_for('billing.create_bill') }}" method="POST">
+            <!-- Customer Details Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold"><i class="fas fa-user"></i> Customer Details</div>
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-md-5">
+                            <label class="form-label">Customer Name</label>
+                            <input type="text" class="form-control" name="customer_name" placeholder="Walk-in Customer">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Phone Number</label>
+                            <input type="text" class="form-control" name="customer_phone" placeholder="Optional">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Payment Mode</label>
+                            <select class="form-select" name="payment_mode">
+                                <option value="Cash">Cash</option>
+                                <option value="Card">Card</option>
+                                <option value="UPI">UPI</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Item Search Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold"><i class="fas fa-search"></i> Search Medicine</div>
+                <div class="card-body">
+                    <div class="position-relative">
+                        <input type="text" id="drugSearch" class="form-control form-control-lg"
+                            placeholder="Type medicine name to search..." autocomplete="off">
+                        <div id="searchResults" class="list-group position-absolute w-100 shadow"
+                            style="display:none; z-index:1000; max-height:300px; overflow-y:auto;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cart Card -->
+            <div class="card shadow-sm border-0 mb-4">
+                <div class="card-header bg-white fw-bold"><i class="fas fa-shopping-cart"></i> Bill Items</div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-bordered mb-0" id="billTable">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Medicine Name</th>
+                                    <th>Batch</th>
+                                    <th>Avail. Qty</th>
+                                    <th style="width: 120px;">Bill Qty</th>
+                                    <th>Rate (₹)</th>
+                                    <th>GST %</th>
+                                    <th>Item Total (₹)</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="billItems">
+                                <!-- Items will be dynamically added here -->
+                                <tr id="emptyCartRow">
+                                    <td colspan="8" class="text-center py-4 text-muted">No items added to bill yet.
+                                        Search and add medicines above.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <!-- Totals Section -->
+                <div class="card-footer bg-white text-end py-3">
+                    <div class="row justify-content-end">
+                        <div class="col-md-4">
+                            <table class="table table-borderless table-sm mb-0">
+                                <tr>
+                                    <td>Subtotal:</td>
+                                    <td class="fw-bold fs-6">₹ <span id="subtotalLabel">0.00</span></td>
+                                </tr>
+                                <tr>
+                                    <td>Total GST:</td>
+                                    <td class="fw-bold fs-6">₹ <span id="gstLabel">0.00</span></td>
+                                </tr>
+                                <tr class="border-top">
+                                    <td class="fs-5 fw-bold text-primary-custom">Grand Total:</td>
+                                    <td class="fs-5 fw-bold text-primary-custom">₹ <span id="totalLabel">0.00</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            <button type="submit" id="saveBillBtn"
+                                class="btn btn-primary-custom btn-lg w-100 mt-3 text-white" disabled>
+                                <i class="fas fa-check-circle"></i> Complete & Print Bill
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const searchInput = document.getElementById('drugSearch');
+        const searchResults = document.getElementById('searchResults');
+        const billItems = document.getElementById('billItems');
+        const emptyCartRow = document.getElementById('emptyCartRow');
+        const saveBillBtn = document.getElementById('saveBillBtn');
+
+        // Expose item template calculation globally
+        window.calculateRow = function (input) {
+            let row = input.closest('tr');
+            let qty = parseInt(input.value) || 0;
+            let maxQty = parseInt(input.getAttribute('max'));
+
+            if (qty > maxQty) {
+                alert(`Cannot exceed available quantity (${maxQty})`);
+                qty = maxQty;
+                input.value = qty;
+            }
+            if (qty < 1) {
+                qty = 1;
+                input.value = qty;
+            }
+
+            let rate = parseFloat(row.querySelector('.rate-val').value);
+            let gstPct = parseFloat(row.querySelector('.gst-val').value);
+
+            let baseAmount = qty * rate;
+            let gstAmount = baseAmount * (gstPct / 100);
+            let itemTotal = baseAmount + gstAmount;
+
+            row.querySelector('.item-total-lbl').innerText = itemTotal.toFixed(2);
+            updateGrandTotal();
+        };
+
+        window.removeRow = function (btn) {
+            btn.closest('tr').remove();
+            if (billItems.querySelectorAll('tr').length === 0) {
+                emptyCartRow.style.display = 'table-row';
+                saveBillBtn.disabled = true;
+            }
+            updateGrandTotal();
+        };
+
+        function updateGrandTotal() {
+            let subtotal = 0;
+            let gstTotal = 0;
+
+            document.querySelectorAll('.bill-item-row').forEach(row => {
+                let qty = parseInt(row.querySelector('.qty-input').value) || 0;
+                let rate = parseFloat(row.querySelector('.rate-val').value);
+                let gstPct = parseFloat(row.querySelector('.gst-val').value);
+
+                let base = qty * rate;
+                let gst = base * (gstPct / 100);
+
+                subtotal += base;
+                gstTotal += gst;
+            });
+
+            let grandTotal = subtotal + gstTotal;
+
+            document.getElementById('subtotalLabel').innerText = subtotal.toFixed(2);
+            document.getElementById('gstLabel').innerText = gstTotal.toFixed(2);
+            document.getElementById('totalLabel').innerText = grandTotal.toFixed(2);
+        }
+
+        // Live Search AJAX
+        searchInput.addEventListener('input', function () {
+            let query = this.value;
+            if (query.length < 2) {
+                searchResults.style.display = 'none';
+                return;
+            }
+
+            fetch(`{{ url_for('billing.search_drug') }}?q=${query}`)
+                .then(response => response.json())
+                .then(data => {
+                    searchResults.innerHTML = '';
+                    if (data.length > 0) {
+                        data.forEach(item => {
+                            // Convert expiry to display format
+                            let d = new Date(item.expiry_date);
+                            let formattedDate = `${d.getDate()}-${d.toLocaleString('default', { month: 'short' })}-${d.getFullYear()}`;
+
+                            let div = document.createElement('a');
+                            div.className = 'list-group-item list-group-item-action cursor-pointer';
+                            div.innerHTML = `
+                                <div class="d-flex w-100 justify-content-between">
+                                    <h6 class="mb-1 fw-bold">${item.drug_name}</h6>
+                                    <small class="text-success fw-bold">₹${item.mrp}</small>
+                                </div>
+                                <p class="mb-1 text-muted small">Batch: ${item.batch_number} | Stock: ${item.quantity} | GST: ${item.gst_percent}% | Exp: ${formattedDate}</p>
+                            `;
+                            div.addEventListener('click', function (e) {
+                                e.preventDefault();
+                                addItemToCart(item);
+                                searchResults.style.display = 'none';
+                                searchInput.value = '';
+                                searchInput.focus();
+                            });
+                            searchResults.appendChild(div);
+                        });
+                        searchResults.style.display = 'block';
+                    } else {
+                        searchResults.innerHTML = '<div class="list-group-item text-muted">No medicines found in stock</div>';
+                        searchResults.style.display = 'block';
+                    }
+                });
+        });
+
+        // Hide search results when clicking outside
+        document.addEventListener('click', function (e) {
+            if (e.target !== searchInput && e.target !== searchResults) {
+                searchResults.style.display = 'none';
+            }
+        });
+
+        function addItemToCart(item) {
+            // Check if batch already added
+            if (document.getElementById(`batch_row_${item.batch_id}`)) {
+                alert("This batch is already in the bill. Please increase the quantity instead.");
+                return;
+            }
+
+            emptyCartRow.style.display = 'none';
+            saveBillBtn.disabled = false;
+
+            // Extract base rate from MRP assuming MRP = Rate + GST
+            // Base Rate = MRP / (1 + GST_Pct/100)
+            let baseRate = parseFloat(item.mrp) / (1 + (parseFloat(item.gst_percent) / 100));
+            // Let's use Base Rate for calculation
+
+            let tr = document.createElement('tr');
+            tr.className = 'bill-item-row';
+            tr.id = `batch_row_${item.batch_id}`;
+
+            tr.innerHTML = `
+                <td class="fw-bold">
+                    ${item.drug_name}
+                    <input type="hidden" name="batch_id[]" value="${item.batch_id}">
+                </td>
+                <td>${item.batch_number}</td>
+                <td class="text-center font-monospace">${item.quantity}</td>
+                <td>
+                    <input type="number" name="quantity[]" class="form-control form-control-sm qty-input" value="1" min="1" max="${item.quantity}" oninput="calculateRow(this)">
+                </td>
+                <td>
+                    ${baseRate.toFixed(2)}
+                    <input type="hidden" name="unit_price[]" class="rate-val" value="${baseRate.toFixed(4)}">
+                </td>
+                <td>
+                    ${item.gst_percent}%
+                    <input type="hidden" name="gst_percent[]" class="gst-val" value="${item.gst_percent}">
+                </td>
+                <td class="fw-bold fs-6">₹ <span class="item-total-lbl">${parseFloat(item.mrp).toFixed(2)}</span></td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeRow(this)"><i class="fas fa-trash"></i></button>
+                </td>
+            `;
+
+            billItems.appendChild(tr);
+            updateGrandTotal();
+        }
+
+    });
+</script>
+{% endblock %}

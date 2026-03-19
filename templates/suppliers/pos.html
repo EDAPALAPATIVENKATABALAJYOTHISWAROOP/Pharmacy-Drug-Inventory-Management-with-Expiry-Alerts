@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Orders - Pharmacy System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="fas fa-file-invoice text-primary-custom"></i> Purchase Orders</h2>
+    <a href="{{ url_for('suppliers.list_suppliers') }}" class="btn btn-outline-secondary"><i
+            class="fas fa-arrow-left"></i> Back to Suppliers</a>
+</div>
+
+<div class="row">
+    <!-- PO Creation Form -->
+    <div class="col-lg-4 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-bold"><i class="fas fa-plus-circle"></i> Create New PO</div>
+            <div class="card-body">
+                <form action="{{ url_for('suppliers.create_po') }}" method="POST">
+                    <div class="mb-3">
+                        <label class="form-label">Select Supplier</label>
+                        <select class="form-select" name="supplier_id" required>
+                            <option value="">Choose Supplier...</option>
+                            {% for s in suppliers %}
+                            <option value="{{ s.supplier_id }}">{{ s.supplier_name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Expected Delivery Date</label>
+                        <input type="date" class="form-control" name="expected_date" required>
+                    </div>
+
+                    <hr>
+                    <h6 class="fw-bold mb-3">Order Items</h6>
+
+                    <div id="poItemsContainer">
+                        <div class="po-item border rounded p-2 mb-2 bg-light">
+                            <div class="mb-2">
+                                <label class="form-label small">Drug</label>
+                                <select class="form-select form-select-sm" name="drug_id[]" required>
+                                    <option value="">Select Drug...</option>
+                                    {% for d in drugs %}
+                                    <option value="{{ d.drug_id }}">{{ d.drug_name }} ({{ d.category }})</option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="row g-2">
+                                <div class="col-6">
+                                    <label class="form-label small">Req. Qty</label>
+                                    <input type="number" class="form-control form-control-sm" name="quantity[]" min="1"
+                                        required>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label small">Price (₹)</label>
+                                    <input type="number" step="0.01" class="form-control form-control-sm" name="price[]"
+                                        required>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="button" id="addPoItemBtn" class="btn btn-sm btn-outline-primary mb-3"><i
+                            class="fas fa-plus"></i> Add Item Row</button>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary-custom text-white fw-bold"><i
+                                class="fas fa-paper-plane"></i> Generate PO</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- PO List -->
+    <div class="col-lg-8 mb-4">
+        <div class="card shadow-sm border-0 h-100">
+            <div class="card-header bg-white fw-bold"><i class="fas fa-list"></i> Recent Purchase Orders</div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped mb-0">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>PO Number</th>
+                                <th>Date</th>
+                                <th>Supplier</th>
+                                <th>Value (₹)</th>
+                                <th>Status</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for po in po_list %}
+                            <tr>
+                                <td class="fw-bold text-primary-custom">#{{ po.po_id }}</td>
+                                <td>{{ po.order_date }}</td>
+                                <td>{{ po.supplier_name }}</td>
+                                <td class="fw-bold">₹ {{ "%.2f"|format(po.total_value) }}</td>
+                                <td>
+                                    {% if po.status == 'Pending' %}
+                                    <span class="badge bg-warning text-dark"><i class="fas fa-clock"></i> Pending</span>
+                                    {% elif po.status == 'Delivered' %}
+                                    <span class="badge bg-success"><i class="fas fa-check-circle"></i> Delivered</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">{{ po.status }}</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="{{ url_for('suppliers.po_pdf', po_id=po.po_id) }}"
+                                            class="btn btn-sm btn-outline-danger" target="_blank" title="Download PDF">
+                                            <i class="fas fa-file-pdf"></i>
+                                        </a>
+                                        {% if po.status == 'Pending' %}
+                                        <form action="{{ url_for('suppliers.mark_po_delivered', po_id=po.po_id) }}"
+                                            method="POST" class="d-inline"
+                                            onsubmit="return confirm('Mark this PO as delivered? Stock will be automatically added.');">
+                                            <button type="submit" class="btn btn-sm btn-success" title="Mark Delivered">
+                                                <i class="fas fa-box-open"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="6" class="text-center py-4 text-muted">No Purchase Orders found.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const addPoItemBtn = document.getElementById('addPoItemBtn');
+        const poItemsContainer = document.getElementById('poItemsContainer');
+
+        addPoItemBtn.addEventListener('click', function () {
+            // Clone the first item
+            const firstItem = poItemsContainer.querySelector('.po-item');
+            const clone = firstItem.cloneNode(true);
+
+            // Clear inputs in clone
+            clone.querySelectorAll('input').forEach(input => input.value = '');
+            clone.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+
+            // Add remove button row
+            const removeBtnDiv = document.createElement('div');
+            removeBtnDiv.className = 'text-end mt-2';
+            removeBtnDiv.innerHTML = `<button type="button" class="btn btn-sm btn-danger remove-item-btn"><i class="fas fa-trash"></i> Remove</button>`;
+
+            clone.appendChild(removeBtnDiv);
+            poItemsContainer.appendChild(clone);
+
+            // Add listener to remove button
+            const removeBtn = clone.querySelector('.remove-item-btn');
+            removeBtn.addEventListener('click', function () {
+                clone.remove();
+            });
+        });
+    });
+</script>
+{% endblock %}
