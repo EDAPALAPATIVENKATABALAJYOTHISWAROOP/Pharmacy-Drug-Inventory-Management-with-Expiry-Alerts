@@ -1,5 +1,7 @@
 # 💊 PharmaSys — Pharmacy & Drug Inventory Management System
 
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/EDAPALAPATIVENKATABALAJYOTHISWAROOP/Pharmacy-Drug-Inventory-Management-with-Expiry-Alerts)
+
 A full-stack web application built with **Flask** for managing a pharmacy's drug inventory, billing, suppliers, expiry alerts, and user access control.
 
 ---
@@ -204,15 +206,14 @@ pip install -r requirements.txt
 
 ## 🚀 Deployment (Render.com)
 
-1. Push your project to GitHub
-2. Go to [Render.com](https://render.com) → **New Web Service**
-3. Connect your GitHub repo
-4. Set:
-   - **Build Command:** `pip install -r requirements.txt`
-   - **Start Command:** `python app.py`
-5. Add Environment Variable:
-   - `SECRET_KEY` → any long random string
-6. Click **Deploy** ✅
+Deploying is now a **one-click process** using the included Render Blueprint!
+
+1. Click the button below (or at the top of this repository):
+   <br><br>
+   [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/EDAPALAPATIVENKATABALAJYOTHISWAROOP/Pharmacy-Drug-Inventory-Management-with-Expiry-Alerts)
+   
+2. Follow the prompts on Render.com to log in with GitHub.
+3. Render will instantly configure everything automatically (using the `render.yaml` file) and launch your site!
 
 ---
 
