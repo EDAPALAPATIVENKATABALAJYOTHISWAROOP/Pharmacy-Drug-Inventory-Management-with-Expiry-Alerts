@@ -2,6 +2,8 @@
 
 [![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/EDAPALAPATIVENKATABALAJYOTHISWAROOP/Pharmacy-Drug-Inventory-Management-with-Expiry-Alerts)
 
+🚀 **Live Demo:** [https://pharmacy-system-tssz.onrender.com](https://pharmacy-system-tssz.onrender.com)
+
 A full-stack web application built with **Flask** for managing a pharmacy's drug inventory, billing, suppliers, expiry alerts, and user access control.
 
 ---
